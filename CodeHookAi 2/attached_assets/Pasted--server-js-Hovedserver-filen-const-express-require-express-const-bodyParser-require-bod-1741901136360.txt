@@ -1,0 +1,92 @@
+// server.js - Hovedserver-filen
+const express = require('express');
+const bodyParser = require('body-parser');
+const axios = require('axios');
+require('dotenv').config();
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+
+// Middlewares
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Routes
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, history } = req.body;
+    
+    // Format samtalehistorik for Claude API
+    const messages = [];
+    if (history && history.length > 0) {
+      for (const entry of history) {
+        messages.push({
+          role: entry.role,
+          content: entry.content
+        });
+      }
+    }
+    
+    // Tilføj den nuværende besked
+    messages.push({
+      role: "user",
+      content: message
+    });
+    
+    // Kald til Claude API (eller OpenAI, afhængigt af hvad du bruger)
+    // Dette eksempel bruger Claude API
+    const aiResponse = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: "claude-3-sonnet-20240229",
+      messages: messages,
+      max_tokens: 4000
+    }, {
+      headers: {
+        'x-api-key': process.env.CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      }
+    });
+    
+    const responseContent = aiResponse.data.content[0].text;
+    
+    // Check om svaret indeholder kode
+    const hasCode = responseContent.includes('```');
+    
+    // Send svaret tilbage til frontend
+    res.json({
+      role: "assistant",
+      content: responseContent,
+      hasCode
+    });
+    
+  } catch (error) {
+    console.error('Error calling AI API:', error);
+    res.status(500).json({ 
+      error: 'Failed to get AI response',
+      details: error.message
+    });
+  }
+});
+
+// Dummy endepunkt til Langchain (skal implementeres senere)
+app.post('/api/langchain', (req, res) => {
+  const { code } = req.body;
+  
+  // Dette er en placeholder. Senere vil dette kalde det rigtige LangChain API
+  console.log('Code sent to LangChain:', code);
+  
+  // Simuleret svar fra LangChain
+  res.json({
+    success: true,
+    result: "LangChain har modtaget koden og er ved at bearbejde den...",
+    simulatedResponse: true
+  });
+});
+
+// Start serveren
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server kører på port ${PORT}`);
+});

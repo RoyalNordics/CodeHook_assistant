@@ -1,0 +1,81 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeHook - AI Kodeassistent</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Venstre sidebar - Projektinfo -->
+      <div class="col-md-3 sidebar">
+        <div class="sidebar-header">
+          <h3>CodeHook</h3>
+          <p>Din AI Kodeassistent</p>
+        </div>
+        <div class="project-info">
+          <h5>Aktuelle Projekt</h5>
+          <div class="form-floating mb-3">
+            <input type="text" class="form-control" id="projectName" placeholder="Projektnavn">
+            <label for="projectName">Projektnavn</label>
+          </div>
+          <div class="form-floating">
+            <textarea class="form-control" id="projectDescription" style="height: 150px" placeholder="Projektbeskrivelse"></textarea>
+            <label for="projectDescription">Projektbeskrivelse</label>
+          </div>
+          <button id="updateProject" class="btn btn-primary mt-3">Opdater Projekt</button>
+        </div>
+      </div>
+      
+      <!-- Hovedchat område -->
+      <div class="col-md-6 chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <!-- AI velkomstbesked -->
+          <div class="message ai-message">
+            <div class="message-content">
+              <p>Hej! Jeg er din kodeassistent. Fortæl mig om din app-idé, og jeg vil hjælpe dig med at udvikle den.</p>
+            </div>
+          </div>
+          <!-- Beskeder bliver tilføjet her dynamisk -->
+        </div>
+        
+        <div class="chat-input">
+          <div class="input-group">
+            <textarea id="userInput" class="form-control" placeholder="Beskriv din app-idé eller stil et spørgsmål..." rows="3"></textarea>
+            <button id="sendButton" class="btn btn-primary">Send</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Højre sidebar - Kodevisning -->
+      <div class="col-md-3 code-sidebar">
+        <div class="code-header">
+          <h5>Genereret Kode</h5>
+          <div class="btn-group" role="group">
+            <button id="sendToLangchain" class="btn btn-sm btn-success" disabled>Send til LangChain</button>
+            <button id="copyCode" class="btn btn-sm btn-secondary" disabled>Kopier</button>
+          </div>
+        </div>
+        <div class="code-container">
+          <pre><code id="codeDisplay" class="language-javascript">// Genereret kode vises her...</code></pre>
+        </div>
+        <div class="langchain-response mt-3 d-none" id="langchainResponseContainer">
+          <h6>LangChain Svar:</h6>
+          <div id="langchainResponse" class="p-2 border rounded"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.2.4/marked.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

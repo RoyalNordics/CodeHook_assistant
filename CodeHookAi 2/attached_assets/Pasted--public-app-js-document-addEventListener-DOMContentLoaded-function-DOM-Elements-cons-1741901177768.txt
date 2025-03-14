@@ -1,0 +1,240 @@
+// public/app.js
+document.addEventListener('DOMContentLoaded', function() {
+  // DOM Elements
+  const chatMessages = document.getElementById('chatMessages');
+  const userInput = document.getElementById('userInput');
+  const sendButton = document.getElementById('sendButton');
+  const codeDisplay = document.getElementById('codeDisplay');
+  const sendToLangchainBtn = document.getElementById('sendToLangchain');
+  const copyCodeBtn = document.getElementById('copyCode');
+  const langchainResponseContainer = document.getElementById('langchainResponseContainer');
+  const langchainResponse = document.getElementById('langchainResponse');
+  const projectNameInput = document.getElementById('projectName');
+  const projectDescriptionInput = document.getElementById('projectDescription');
+  const updateProjectBtn = document.getElementById('updateProject');
+  
+  // Chat history
+  let messageHistory = [];
+  
+  // Current extracted code
+  let currentCode = '';
+  
+  // Initialize highlight.js
+  hljs.highlightAll();
+  
+  // Event listeners
+  sendButton.addEventListener('click', sendMessage);
+  userInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  
+  sendToLangchainBtn.addEventListener('click', sendToLangchain);
+  copyCodeBtn.addEventListener('click', copyCodeToClipboard);
+  updateProjectBtn.addEventListener('click', updateProjectInfo);
+  
+  // Send message to AI
+  async function sendMessage() {
+    const message = userInput.value.trim();
+    if (!message) return;
+    
+    // Add user message to chat
+    addMessageToChat('user', message);
+    
+    // Clear input
+    userInput.value = '';
+    
+    // Disable send button and show loading
+    sendButton.disabled = true;
+    sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sender...';
+    
+    try {
+      // Call API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message,
+          history: messageHistory
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const data = await response.json();
+      
+      // Add AI response to chat
+      addMessageToChat('assistant', data.content);
+      
+      // Check if response contains code
+      if (data.hasCode) {
+        extractAndDisplayCode(data.content);
+      }
+      
+    } catch (error) {
+      console.error('Error:', error);
+      addMessageToChat('assistant', 'Der opstod en fejl. Prøv igen senere.');
+    } finally {
+      // Re-enable send button
+      sendButton.disabled = false;
+      sendButton.textContent = 'Send';
+    }
+  }
+  
+  // Add a message to the chat
+  function addMessageToChat(role, content) {
+    // Add to history
+    messageHistory.push({ role, content });
+    
+    // Create message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role === 'user' ? 'user-message' : 'ai-message'}`;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    // Use marked to render markdown
+    contentDiv.innerHTML = marked.parse(content);
+    
+    // Apply syntax highlighting to code blocks in the message
+    contentDiv.querySelectorAll('pre code').forEach((block) => {
+      hljs.highlightElement(block);
+    });
+    
+    messageDiv.appendChild(contentDiv);
+    chatMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+  
+  // Extract code from message and display in code sidebar
+  function extractAndDisplayCode(message) {
+    const codeRegex = /```(?:(\w+)\n)?([\s\S]*?)```/g;
+    let match;
+    let lastCode = '';
+    
+    while ((match = codeRegex.exec(message)) !== null) {
+      // The last matched code block
+      lastCode = match[2].trim();
+    }
+    
+    if (lastCode) {
+      currentCode = lastCode;
+      codeDisplay.textContent = currentCode;
+      
+      // Update highlight.js
+      hljs.highlightElement(codeDisplay);
+      
+      // Enable buttons
+      sendToLangchainBtn.disabled = false;
+      copyCodeBtn.disabled = false;
+    }
+  }
+  
+  // Send code to LangChain
+  async function sendToLangchain() {
+    if (!currentCode) return;
+    
+    // Update button state
+    sendToLangchainBtn.disabled = true;
+    sendToLangchainBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sender...';
+    
+    try {
+      // Call LangChain API
+      const response = await fetch('/api/langchain', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code: currentCode,
+          projectName: projectNameInput.value,
+          projectDescription: projectDescriptionInput.value
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const data = await response.json();
+      
+      // Show LangChain response
+      langchainResponseContainer.classList.remove('d-none');
+      langchainResponse.textContent = data.result;
+      
+      // Add LangChain response to chat
+      if (data.simulatedResponse) {
+        addMessageToChat('assistant', 'LangChain modtog din kode. Da dette er en demo-version, er LangChain integrationen simuleret. I en fuld implementation ville LangChain nu bearbejde din kode og returnere et resultat.');
+      } else {
+        addMessageToChat('assistant', `LangChain svar: ${data.result}`);
+      }
+      
+    } catch (error) {
+      console.error('Error:', error);
+      langchainResponseContainer.classList.remove('d-none');
+      langchainResponse.textContent = 'Der opstod en fejl ved kommunikation med LangChain.';
+    } finally {
+      // Re-enable button
+      sendToLangchainBtn.disabled = false;
+      sendToLangchainBtn.textContent = 'Send til LangChain';
+    }
+  }
+  
+  // Copy code to clipboard
+  function copyCodeToClipboard() {
+    if (!currentCode) return;
+    
+    navigator.clipboard.writeText(currentCode)
+      .then(() => {
+        // Update button text temporarily
+        const originalText = copyCodeBtn.textContent;
+        copyCodeBtn.textContent = 'Kopieret!';
+        
+        setTimeout(() => {
+          copyCodeBtn.textContent = originalText;
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Kunne ikke kopiere tekst: ', err);
+      });
+  }
+  
+  // Update project information
+  function updateProjectInfo() {
+    const projectName = projectNameInput.value.trim();
+    const projectDescription = projectDescriptionInput.value.trim();
+    
+    if (!projectName) {
+      alert('Venligst indtast et projektnavn');
+      return;
+    }
+    
+    // Add project info to chat
+    const projectInfo = `# Projekt: ${projectName}\n\n${projectDescription}`;
+    addMessageToChat('assistant', 'Tak! Jeg har opdateret projektinformationen.');
+    
+    // You could also store this in localStorage or send to server
+    localStorage.setItem('projectName', projectName);
+    localStorage.setItem('projectDescription', projectDescription);
+  }
+  
+  // Load project info from localStorage if available
+  function loadProjectInfo() {
+    const savedName = localStorage.getItem('projectName');
+    const savedDescription = localStorage.getItem('projectDescription');
+    
+    if (savedName) projectNameInput.value = savedName;
+    if (savedDescription) projectDescriptionInput.value = savedDescription;
+  }
+  
+  // Load saved project info on page load
+  loadProjectInfo();
+});
